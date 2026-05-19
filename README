@@ -1,0 +1,58 @@
+TinyGL for TI-Nspire
+=====================
+
+This tree contains a TI-Nspire-focused TinyGL build. The legacy desktop
+ports and their public APIs have been removed, including GLX/X11, Nano-X,
+and BeOS support.
+
+The remaining public headers are:
+
+- `include/GL/gl.h` for the TinyGL/OpenGL-like API.
+- `include/GL/oscontext.h` for the small framebuffer context API used by
+  the Nspire port.
+- `include/GL/nspire.h` for Nspire-specific input, timing, and display
+  helpers.
+
+Performance
+-----------
+
+Do not expect magic, it only runs the gears example at ~20fps in an
+emulated CX CAS and slower on real hardware.
+
+Build
+-----
+
+Install the Ndless SDK and make sure `nspire-gcc`, `nspire-ld`, and
+`genzehn` are on `PATH`, then run:
+
+```
+make
+```
+
+That is equivalent to:
+
+```
+make -f Makefile.nspire
+```
+
+The default build creates `libTinyGL.a`.
+
+To build the `examples/nspire_gears.c` demo as `nspire_gears.tns`, run:
+
+```
+make example
+```
+
+Profiler support is compiled out by default. Enable it with:
+
+```
+make NSPIRE_PROFILER=1 example
+```
+
+Use `make clean` to remove generated Nspire build artifacts.
+
+Copyright
+---------
+
+TinyGL was originally written by Fabrice Bellard and is distributed under
+the MIT license. See `LICENSE`.

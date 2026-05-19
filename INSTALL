@@ -1,0 +1,15 @@
+TI-Nspire build
+===============
+
+1. Install the Ndless SDK.
+2. Ensure `nspire-gcc`, `nspire-ld`, and `genzehn` are available on `PATH`.
+3. Run `make` from the repository root to build `libTinyGL.a`.
+
+To build the gears demo, run `make example`. That produces
+`nspire_gears.tns`.
+
+Optional settings:
+
+- `make DEBUG=1` builds without optimization and enables debug symbols.
+- `make NSPIRE_RENDER_SCALE=1` renders at full 320x240 resolution.
+- `make NSPIRE_PROFILER=1 example` enables the demo profiler overlay support.

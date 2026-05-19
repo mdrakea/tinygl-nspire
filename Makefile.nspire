@@ -1,0 +1,99 @@
+# TinyGL TI-Nspire Makefile
+# 
+# Build with: make -f Makefile.nspire
+# Requires TI-Nspire toolchain (Ndless SDK)
+#
+# Build process:
+#   1. nspire-gcc - compile C files to object files
+#   2. nspire-ld  - link object files to ELF executable
+#   3. genzehn    - convert ELF to .tns format
+#
+
+# Toolchain settings
+CC = nspire-gcc
+LD = nspire-ld
+GENZEHN = genzehn
+
+# TI-Nspire-specific flags
+#
+# Release is the default because the Nspire CPU needs every cycle it can get.
+# Use `make -f Makefile.nspire DEBUG=1` for an unoptimized debug build.
+DEBUG ?= 0
+NSPIRE_PROFILER ?= 0
+
+ifeq ($(DEBUG),1)
+NSPIRE_RENDER_SCALE ?= 1
+CFLAGS = -Wno-incompatible-pointer-types -O0 -g -marm -DDEBUG -fno-strict-aliasing -fno-common
+LDFLAGS =
+else
+NSPIRE_RENDER_SCALE ?= 2
+CFLAGS = -Wno-incompatible-pointer-types -Ofast -marm -DNDEBUG -DNSPIRE_RELEASE_BUILD \
+         -fomit-frame-pointer -ffunction-sections -fdata-sections \
+         -fno-strict-aliasing -fno-common
+LDFLAGS = -Wl,--gc-sections
+endif
+
+CFLAGS += -DNSPIRE_RENDER_SCALE=$(NSPIRE_RENDER_SCALE) -DNSPIRE_PROFILER=$(NSPIRE_PROFILER) -I./include
+
+
+# Directories
+SRC_DIR = src
+EXAMPLES_DIR = examples
+
+# TinyGL core source files
+TINYGL_SRCS = api.c list.c vertex.c init.c matrix.c texture.c \
+               misc.c clear.c light.c clip.c select.c get.c error.c \
+               zbuffer.c zline.c zdither.c ztriangle.c \
+               zmath.c image_util.c msghandling.c \
+               arrays.c specbuf.c memory.c nspire.c
+
+# Example
+EXAMPLE_NAME = nspire_gears
+
+BUILD_DIR = build/debug$(DEBUG)-scale$(NSPIRE_RENDER_SCALE)-profiler$(NSPIRE_PROFILER)
+OBJ_DIR = $(BUILD_DIR)/obj
+TINYGL_OBJS = $(addprefix $(OBJ_DIR)/,$(TINYGL_SRCS:.c=.o))
+EXAMPLE_OBJ = $(OBJ_DIR)/$(EXAMPLE_NAME).o
+
+.PHONY: all clean lib example FORCE
+
+all: lib
+
+# Build TinyGL library
+lib: libTinyGL.a
+
+libTinyGL.a: $(TINYGL_OBJS) FORCE
+	@echo "Building TinyGL library..."
+	ar rcs $@ $(TINYGL_OBJS)
+	@echo "Built TinyGL library: $@"
+
+# Compile TinyGL sources from src/
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
+	@mkdir -p $(@D)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/ztriangle.o: $(SRC_DIR)/ztriangle.c
+	@mkdir -p $(@D)
+	$(CC) $(CFLAGS) -Wno-uninitialized -c $< -o $@
+
+# Build example with `make example`
+example: $(EXAMPLE_NAME).tns
+
+# Compile the example
+$(EXAMPLE_OBJ): $(EXAMPLES_DIR)/$(EXAMPLE_NAME).c
+	@mkdir -p $(@D)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+# Link: use the library + example .o
+$(EXAMPLE_NAME).elf: $(EXAMPLE_OBJ) libTinyGL.a
+	$(LD) $(LDFLAGS) -o $@ $< -L. -lTinyGL -lm -lndls
+
+$(EXAMPLE_NAME).tns: $(EXAMPLE_NAME).elf
+	$(GENZEHN) --input $< --output $@ --name "$(EXAMPLE_NAME)"
+	@echo "Built: $@"
+
+clean:
+	rm -rf build
+	rm -f *.o *.a *.elf *.tns *~
+
+FORCE:
