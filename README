@@ -17,7 +17,7 @@ Performance
 -----------
 
 Do not expect magic, it only runs the gears example at ~20fps in an
-emulated CX CAS and slower on real hardware.
+emulated CX CAS and slower on real hardware... at half resolution scale.
 
 Build
 -----
