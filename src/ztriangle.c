@@ -3,76 +3,6 @@
 
 #define ZCMP(z,zpix) ((z) >= (zpix))
 
-#if defined(__arm__) && TGL_FEATURE_RENDER_BITS == 16
-static inline void ZB_spanFlatZARM(PIXEL *pp,
-                                   unsigned short *pz,
-                                   int count,
-                                   unsigned int z,
-                                   int dzdx,
-                                   unsigned int color)
-{
-    __asm__ volatile(
-        "cmp    %[count], #4\n\t"
-        "blt    2f\n"
-        "1:\n\t"
-        "mov    r12, %[z], lsr #14\n\t"
-        "ldrh   r3, [%[pz]]\n\t"
-        "cmp    r12, r3\n\t"
-        "strcsh %[color], [%[pp]]\n\t"
-        "strcsh r12, [%[pz]]\n\t"
-        "add    %[z], %[z], %[dzdx]\n\t"
-
-        "mov    r12, %[z], lsr #14\n\t"
-        "ldrh   r3, [%[pz], #2]\n\t"
-        "cmp    r12, r3\n\t"
-        "strcsh %[color], [%[pp], #2]\n\t"
-        "strcsh r12, [%[pz], #2]\n\t"
-        "add    %[z], %[z], %[dzdx]\n\t"
-
-        "mov    r12, %[z], lsr #14\n\t"
-        "ldrh   r3, [%[pz], #4]\n\t"
-        "cmp    r12, r3\n\t"
-        "strcsh %[color], [%[pp], #4]\n\t"
-        "strcsh r12, [%[pz], #4]\n\t"
-        "add    %[z], %[z], %[dzdx]\n\t"
-
-        "mov    r12, %[z], lsr #14\n\t"
-        "ldrh   r3, [%[pz], #6]\n\t"
-        "cmp    r12, r3\n\t"
-        "strcsh %[color], [%[pp], #6]\n\t"
-        "strcsh r12, [%[pz], #6]\n\t"
-        "add    %[z], %[z], %[dzdx]\n\t"
-
-        "add    %[pp], %[pp], #8\n\t"
-        "add    %[pz], %[pz], #8\n\t"
-        "subs   %[count], %[count], #4\n\t"
-        "cmp    %[count], #4\n\t"
-        "bge    1b\n"
-        "2:\n\t"
-        "cmp    %[count], #0\n\t"
-        "ble    4f\n"
-        "3:\n\t"
-        "mov    r12, %[z], lsr #14\n\t"
-        "ldrh   r3, [%[pz]]\n\t"
-        "cmp    r12, r3\n\t"
-        "strcsh %[color], [%[pp]]\n\t"
-        "strcsh r12, [%[pz]]\n\t"
-        "add    %[z], %[z], %[dzdx]\n\t"
-        "add    %[pp], %[pp], #2\n\t"
-        "add    %[pz], %[pz], #2\n\t"
-        "subs   %[count], %[count], #1\n\t"
-        "bne    3b\n"
-        "4:\n\t"
-        : [pp] "+&r" (pp),
-          [pz] "+&r" (pz),
-          [count] "+&r" (count),
-          [z] "+&r" (z)
-        : [dzdx] "r" (dzdx),
-          [color] "r" (color)
-        : "r3", "r12", "cc", "memory");
-}
-#endif
-
 void ZB_fillTriangleFlat(ZBuffer *zb,
 			 ZBufferPoint *p0,ZBufferPoint *p1,ZBufferPoint *p2)
 {
@@ -111,18 +41,6 @@ void ZB_fillTriangleFlat(ZBuffer *zb,
 {						\
   color=RGB_TO_PIXEL(p2->r,p2->g,p2->b);	\
 }
-
-#if defined(__arm__) && TGL_FEATURE_RENDER_BITS == 16
-#define DRAW_LINE()							\
-{									\
-    int n = (x2 >> 16) - x1;					\
-    if (n >= 0) {							\
-      ZB_spanFlatZARM((PIXEL *)((char *)pp1 + x1 * PSZB),	\
-                      pz1 + x1, n + 1, (unsigned int)z1,	\
-                      dzdx, (unsigned int)color);			\
-    }									\
-}
-#endif
   
 #define PUT_PIXEL(_a)				\
 {						\
