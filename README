@@ -2,6 +2,7 @@ GLESpire for TI-Nspire
 =====================
 
 GLESpire is a OpenGL ES 1.1 compatible software renderer designed for the TI-Nspire (but only tested on CX/CX CAS hardware).
+It was originally forked from TinyGL by Fabrice Bellard, but with functionality removed to support only OpenGL ES's subset of OpenGL 1.1/1.2. (GLshim/GL4ES/etc will eventually be integrated in some form to resupport the desktop APIs)
 
 The TinyGL context allocates a 16MiB internal arena to use for memory
 allocation, but this can be changed by setting `ARENA_SIZE`.
