@@ -1,7 +1,18 @@
 #include <stdlib.h>
+#include <stdint.h>
 #include "zbuffer.h"
 
 #define ZCMP(z,zpix) ((z) >= (zpix))
+
+static inline int div_i64_i32_to_int(int64_t a, int b)
+{
+    /* Triangles should already be clipped so z should not be zero.
+       This guard prevents catastrophic UB if something leaks through. */
+    if (b == 0)
+        return 0;
+
+    return (int)(a / b);
+}
 
 void ZB_fillTriangleFlat(ZBuffer *zb,
 			 ZBufferPoint *p0,ZBufferPoint *p1,ZBufferPoint *p2)
@@ -242,7 +253,7 @@ void ZB_fillTriangleMappingPerspective(ZBuffer *zb,
 #define INTERP_Z
 #define INTERP_STZ
 
-#define NB_INTERP 8
+#define NB_INTERP 32
 
 #define DRAW_INIT()				\
 {						\
@@ -289,62 +300,71 @@ void ZB_fillTriangleMappingPerspective(ZBuffer *zb,
 
 #endif
 
-#define DRAW_LINE()				\
-{						\
-  register unsigned short *pz;		\
-  register PIXEL *pp;		\
-  register unsigned int s,t,z,zz;	\
-  register int n,dsdx,dtdx;		\
-  float sz,tz,fz,zinv; \
-  n=(x2>>16)-x1;                             \
-  fz=(float)z1;\
-  zinv=1.0 / fz;\
-  pp=(PIXEL *)((char *)pp1 + x1 * PSZB); \
-  pz=pz1+x1;					\
-  z=z1;						\
-  sz=sz1;\
-  tz=tz1;\
-  while (n>=(NB_INTERP-1)) {						   \
-    {\
-      float ss,tt;\
-      ss=(sz * zinv);\
-      tt=(tz * zinv);\
-      s=(int) ss;\
-      t=(int) tt;\
-      dsdx= (int)( (dszdx - ss*fdzdx)*zinv );\
-      dtdx= (int)( (dtzdx - tt*fdzdx)*zinv );\
-      fz+=fndzdx;\
-      zinv=1.0 / fz;\
-    }\
-    PUT_PIXEL(0);							   \
-    PUT_PIXEL(1);							   \
-    PUT_PIXEL(2);							   \
-    PUT_PIXEL(3);							   \
-    PUT_PIXEL(4);							   \
-    PUT_PIXEL(5);							   \
-    PUT_PIXEL(6);							   \
-    PUT_PIXEL(7);							   \
-    pz+=NB_INTERP;							   \
-    pp=(PIXEL *)((char *)pp + NB_INTERP * PSZB);\
-    n-=NB_INTERP;							   \
-    sz+=ndszdx;\
-    tz+=ndtzdx;\
-  }									   \
-    {\
-      float ss,tt;\
-      ss=(sz * zinv);\
-      tt=(tz * zinv);\
-      s=(int) ss;\
-      t=(int) tt;\
-      dsdx= (int)( (dszdx - ss*fdzdx)*zinv );\
-      dtdx= (int)( (dtzdx - tt*fdzdx)*zinv );\
-    }\
-  while (n>=0) {							   \
-    PUT_PIXEL(0);							   \
-    pz+=1;								   \
-    pp=(PIXEL *)((char *)pp + PSZB);\
-    n-=1;								   \
-  }									   \
+#define DRAW_LINE()                                                        \
+{                                                                          \
+    register unsigned short *pz;                                           \
+    register PIXEL *pp;                                                    \
+    register unsigned int z, zz;                                           \
+    register int s, t;                                                     \
+    register int n;                                                        \
+    register int dsdx, dtdx;                                               \
+                                                                           \
+    int count;                                                             \
+    int step;                                                              \
+    int z_next;                                                            \
+    int s_next, t_next;                                                    \
+    int64_t sz, tz;                                                        \
+    int64_t sz_next, tz_next;                                              \
+                                                                           \
+    n = (x2 >> 16) - x1;                                                    \
+    count = n + 1;                                                         \
+                                                                           \
+    pp = (PIXEL *)((char *)pp1 + x1 * PSZB);                                \
+    pz = pz1 + x1;                                                         \
+                                                                           \
+    z = z1;                                                                \
+    sz = (int64_t)sz1;                                                     \
+    tz = (int64_t)tz1;                                                     \
+                                                                           \
+    while (count > 0) {                                                     \
+        step = count > NB_INTERP ? NB_INTERP : count;                       \
+                                                                           \
+        z_next = z + dzdx * step;                                           \
+        sz_next = sz + (int64_t)dszdx * step;                               \
+        tz_next = tz + (int64_t)dtzdx * step;                               \
+                                                                           \
+        s = div_i64_i32_to_int(sz, z);                                      \
+        t = div_i64_i32_to_int(tz, z);                                      \
+        s_next = div_i64_i32_to_int(sz_next, z_next);                       \
+        t_next = div_i64_i32_to_int(tz_next, z_next);                       \
+                                                                           \
+        dsdx = (s_next - s) / step;                                         \
+        dtdx = (t_next - t) / step;                                         \
+                                                                           \
+        switch (step) {                                                     \
+        default: PUT_PIXEL(0); pz++; pp = (PIXEL *)((char *)pp + PSZB);     \
+        case 15: PUT_PIXEL(0); pz++; pp = (PIXEL *)((char *)pp + PSZB);     \
+        case 14: PUT_PIXEL(0); pz++; pp = (PIXEL *)((char *)pp + PSZB);     \
+        case 13: PUT_PIXEL(0); pz++; pp = (PIXEL *)((char *)pp + PSZB);     \
+        case 12: PUT_PIXEL(0); pz++; pp = (PIXEL *)((char *)pp + PSZB);     \
+        case 11: PUT_PIXEL(0); pz++; pp = (PIXEL *)((char *)pp + PSZB);     \
+        case 10: PUT_PIXEL(0); pz++; pp = (PIXEL *)((char *)pp + PSZB);     \
+        case 9:  PUT_PIXEL(0); pz++; pp = (PIXEL *)((char *)pp + PSZB);     \
+        case 8:  PUT_PIXEL(0); pz++; pp = (PIXEL *)((char *)pp + PSZB);     \
+        case 7:  PUT_PIXEL(0); pz++; pp = (PIXEL *)((char *)pp + PSZB);     \
+        case 6:  PUT_PIXEL(0); pz++; pp = (PIXEL *)((char *)pp + PSZB);     \
+        case 5:  PUT_PIXEL(0); pz++; pp = (PIXEL *)((char *)pp + PSZB);     \
+        case 4:  PUT_PIXEL(0); pz++; pp = (PIXEL *)((char *)pp + PSZB);     \
+        case 3:  PUT_PIXEL(0); pz++; pp = (PIXEL *)((char *)pp + PSZB);     \
+        case 2:  PUT_PIXEL(0); pz++; pp = (PIXEL *)((char *)pp + PSZB);     \
+        case 1:  PUT_PIXEL(0); pz++; pp = (PIXEL *)((char *)pp + PSZB);     \
+        }                                                                  \
+                                                                           \
+        count -= step;                                                     \
+        sz = sz_next;                                                       \
+        tz = tz_next;                                                       \
+        z = z_next;                                                         \
+    }                                                                      \
 }
   
 #include "ztriangle.h"
