@@ -13,8 +13,11 @@ The remaining public headers are:
   port.
 - `include/GL/oscontext.h` for the small framebuffer context API used by
   the Nspire port.
-- `include/GL/nspire.h` for Nspire-specific input, timing, and display
-  helpers.
+- `include/GL/nspire.h` for the Nspire framebuffer presentation helper.
+
+Nspire input, timing, sleep, debug, and profiler helpers used by demos live
+in `examples/nspire_utils.h` and build into the example-only
+`libnspire_utils.a`.
 
 The TinyGL context allocates a 16MiB internal arena to use for memory
 allocation, but this can be changed by setting `ARENA_SIZE`

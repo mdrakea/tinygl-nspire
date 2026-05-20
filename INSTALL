@@ -6,7 +6,7 @@ TI-Nspire build
 3. Run `make` from the repository root to build `libTinyGL.a`.
 
 To build the gears demo, run `make example`. That produces
-`nspire_gears.tns`.
+`nspire_gears.tns` and links the demo-only `libnspire_utils.a`.
 
 Optional settings:
 

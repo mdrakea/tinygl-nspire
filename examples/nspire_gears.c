@@ -21,6 +21,7 @@
 #include <GL/math.h>
 #include <GL/oscontext.h>
 #include <GL/nspire.h>
+#include "nspire_utils.h"
 
 /* TI-Nspire screen dimensions */
 #define SCREEN_WIDTH  320
@@ -874,6 +875,10 @@ int main(int argc, char **argv)
         return 1;
     }
 
+#if NSPIRE_PROFILER
+    nspire_profiler_init();
+#endif
+
     /* Make first buffer current */
     ostgl_make_current(context, 0);
 
@@ -908,6 +913,9 @@ int main(int argc, char **argv)
     free_gear_mesh(&gear1);
     free_gear_mesh(&gear2);
     free_gear_mesh(&gear3);
+#if NSPIRE_PROFILER
+    nspire_profiler_shutdown();
+#endif
     ostgl_delete_context(context);
 
     puts("Goodbye!");

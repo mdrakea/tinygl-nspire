@@ -52,14 +52,17 @@ TINYGL_SRCS = api.c vertex.c init.c matrix.c texture.c \
 # Example
 EXAMPLE_NAME = nspire_gears
 COVERAGE_NAME = nspire_es11_coverage
+NSPIRE_UTIL_LIB = libnspire_utils.a
+NSPIRE_UTIL_SRCS = nspire_utils.c
 
 BUILD_DIR = build/debug$(DEBUG)-scale$(NSPIRE_RENDER_SCALE)-profiler$(NSPIRE_PROFILER)
 OBJ_DIR = $(BUILD_DIR)/obj
 TINYGL_OBJS = $(addprefix $(OBJ_DIR)/,$(TINYGL_SRCS:.c=.o))
+NSPIRE_UTIL_OBJS = $(addprefix $(OBJ_DIR)/,$(NSPIRE_UTIL_SRCS:.c=.o))
 EXAMPLE_OBJ = $(OBJ_DIR)/$(EXAMPLE_NAME).o
 COVERAGE_OBJ = $(OBJ_DIR)/$(COVERAGE_NAME).o
 
-.PHONY: all clean lib example coverage FORCE
+.PHONY: all clean lib nspire-utils example coverage FORCE
 
 all: lib
 
@@ -70,6 +73,13 @@ libTinyGL.a: $(TINYGL_OBJS) FORCE
 	@echo "Building TinyGL library..."
 	ar rcs $@ $(TINYGL_OBJS)
 	@echo "Built TinyGL library: $@"
+
+nspire-utils: $(NSPIRE_UTIL_LIB)
+
+$(NSPIRE_UTIL_LIB): $(NSPIRE_UTIL_OBJS) FORCE
+	@echo "Building Nspire example utils..."
+	ar rcs $@ $(NSPIRE_UTIL_OBJS)
+	@echo "Built Nspire example utils: $@"
 
 # Compile TinyGL sources from src/
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
@@ -88,6 +98,10 @@ $(EXAMPLE_OBJ): $(EXAMPLES_DIR)/$(EXAMPLE_NAME).c
 	@mkdir -p $(@D)
 	$(CC) $(CFLAGS) -c $< -o $@
 
+$(OBJ_DIR)/nspire_utils.o: $(EXAMPLES_DIR)/nspire_utils.c $(EXAMPLES_DIR)/nspire_utils.h
+	@mkdir -p $(@D)
+	$(CC) $(CFLAGS) -c $< -o $@
+
 coverage: $(COVERAGE_OBJ)
 	@echo "Built ES 1.1 Common-Lite compile coverage: $<"
 
@@ -96,8 +110,8 @@ $(COVERAGE_OBJ): $(EXAMPLES_DIR)/$(COVERAGE_NAME).c
 	$(CC) $(CFLAGS) -c $< -o $@
 
 # Link: use the library + example .o
-$(EXAMPLE_NAME).elf: $(EXAMPLE_OBJ) libTinyGL.a
-	$(LD) $(LDFLAGS) -o $@ $< -L. -lTinyGL -lndls
+$(EXAMPLE_NAME).elf: $(EXAMPLE_OBJ) $(NSPIRE_UTIL_LIB) libTinyGL.a
+	$(LD) $(LDFLAGS) -o $@ $(EXAMPLE_OBJ) -L. -lnspire_utils -lTinyGL -lndls
 
 $(EXAMPLE_NAME).tns: $(EXAMPLE_NAME).elf
 	$(GENZEHN) --input $< --output $@ --name "$(EXAMPLE_NAME)"
