@@ -4,7 +4,9 @@
 #include "zgl.h"
 #include <string.h>
 
+#ifndef ARENA_SIZE
 #define ARENA_SIZE  (16 * 1024 * 1024)
+#endif
 #define NUM_BUCKETS 32
 #define ALIGN       16
 
