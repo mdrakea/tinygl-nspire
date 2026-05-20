@@ -42,8 +42,8 @@ SRC_DIR = src
 EXAMPLES_DIR = examples
 
 # TinyGL core source files
-TINYGL_SRCS = api.c list.c vertex.c init.c matrix.c texture.c \
-               misc.c clear.c light.c clip.c select.c get.c error.c \
+TINYGL_SRCS = api.c vertex.c init.c matrix.c texture.c \
+               misc.c clear.c light.c clip.c get.c error.c \
                zbuffer.c zline.c zdither.c ztriangle.c \
                zmath.c image_util.c msghandling.c \
                arrays.c specbuf.c memory.c nspire.c \

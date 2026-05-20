@@ -47,8 +47,6 @@ static int valid_light_pname(GLenum pname)
 static void call_color(GLContext *c, GLfixed r, GLfixed g, GLfixed b, GLfixed a)
 {
   GLParam p[8];
-
-  p[0].op = OP_Color;
   p[1].f = r;
   p[2].f = g;
   p[3].f = b;
@@ -74,8 +72,6 @@ void glNormal3x(GLfixed nx, GLfixed ny, GLfixed nz)
 {
   GLParam p[4];
   GLContext *c = gl_get_context();
-
-  p[0].op = OP_Normal;
   p[1].f = nx;
   p[2].f = ny;
   p[3].f = nz;
@@ -91,7 +87,6 @@ void glMultiTexCoord4x(GLenum target, GLfixed s, GLfixed t, GLfixed r, GLfixed q
     gl_set_error(c, GL_INVALID_ENUM);
     return;
   }
-  p[0].op = OP_TexCoord;
   p[1].f = s;
   p[2].f = t;
   p[3].f = r;
@@ -108,7 +103,6 @@ void glShadeModel(GLenum mode)
     gl_set_error(c, GL_INVALID_ENUM);
     return;
   }
-  p[0].op = OP_ShadeModel;
   p[1].i = mode;
   glopShadeModel(c, p);
 }
@@ -122,7 +116,6 @@ void glCullFace(GLenum mode)
     gl_set_error(c, GL_INVALID_ENUM);
     return;
   }
-  p[0].op = OP_CullFace;
   p[1].i = mode;
   glopCullFace(c, p);
 }
@@ -136,7 +129,6 @@ void glFrontFace(GLenum mode)
     gl_set_error(c, GL_INVALID_ENUM);
     return;
   }
-  p[0].op = OP_FrontFace;
   p[1].i = (mode != GL_CCW);
   glopFrontFace(c, p);
 }
@@ -164,8 +156,6 @@ static void enable_disable(GLenum cap, int enabled)
     return;
   }
   if (cap == GL_DITHER) return;
-
-  p[0].op = OP_EnableDisable;
   p[1].i = cap;
   p[2].i = enabled;
   glopEnableDisable(c, p);
@@ -210,7 +200,6 @@ void glMatrixMode(GLenum mode)
     gl_set_error(c, GL_INVALID_ENUM);
     return;
   }
-  p[0].op = OP_MatrixMode;
   p[1].i = mode;
   glopMatrixMode(c, p);
 }
@@ -225,18 +214,14 @@ void glLoadMatrixx(const GLfixed *m)
     gl_set_error(c, GL_INVALID_VALUE);
     return;
   }
-  p[0].op = OP_LoadMatrix;
   for (i = 0; i < 16; i++) p[i + 1].f = m[i];
   glopLoadMatrix(c, p);
 }
 
 void glLoadIdentity(void)
 {
-  GLParam p[1];
   GLContext *c = gl_get_context();
-
-  p[0].op = OP_LoadIdentity;
-  glopLoadIdentity(c, p);
+  glopLoadIdentity(c, NULL);
 }
 
 void glMultMatrixx(const GLfixed *m)
@@ -249,14 +234,12 @@ void glMultMatrixx(const GLfixed *m)
     gl_set_error(c, GL_INVALID_VALUE);
     return;
   }
-  p[0].op = OP_MultMatrix;
   for (i = 0; i < 16; i++) p[i + 1].f = m[i];
   glopMultMatrix(c, p);
 }
 
 void glPushMatrix(void)
 {
-  GLParam p[1];
   GLContext *c = gl_get_context();
   int n = c->matrix_mode;
 
@@ -264,13 +247,11 @@ void glPushMatrix(void)
     gl_set_error(c, GL_STACK_OVERFLOW);
     return;
   }
-  p[0].op = OP_PushMatrix;
-  glopPushMatrix(c, p);
+  glopPushMatrix(c, NULL);
 }
 
 void glPopMatrix(void)
 {
-  GLParam p[1];
   GLContext *c = gl_get_context();
   int n = c->matrix_mode;
 
@@ -278,16 +259,13 @@ void glPopMatrix(void)
     gl_set_error(c, GL_STACK_UNDERFLOW);
     return;
   }
-  p[0].op = OP_PopMatrix;
-  glopPopMatrix(c, p);
+  glopPopMatrix(c, NULL);
 }
 
 void glRotatex(GLfixed angle, GLfixed x, GLfixed y, GLfixed z)
 {
   GLParam p[5];
   GLContext *c = gl_get_context();
-
-  p[0].op = OP_Rotate;
   p[1].f = angle;
   p[2].f = x;
   p[3].f = y;
@@ -299,8 +277,6 @@ void glTranslatex(GLfixed x, GLfixed y, GLfixed z)
 {
   GLParam p[4];
   GLContext *c = gl_get_context();
-
-  p[0].op = OP_Translate;
   p[1].f = x;
   p[2].f = y;
   p[3].f = z;
@@ -311,8 +287,6 @@ void glScalex(GLfixed x, GLfixed y, GLfixed z)
 {
   GLParam p[4];
   GLContext *c = gl_get_context();
-
-  p[0].op = OP_Scale;
   p[1].f = x;
   p[2].f = y;
   p[3].f = z;
@@ -328,7 +302,6 @@ void glViewport(GLint x, GLint y, GLsizei width, GLsizei height)
     gl_set_error(c, GL_INVALID_VALUE);
     return;
   }
-  p[0].op = OP_Viewport;
   p[1].i = x;
   p[2].i = y;
   p[3].i = width;
@@ -346,7 +319,6 @@ void glFrustumx(GLfixed left, GLfixed right, GLfixed bottom, GLfixed top,
     gl_set_error(c, GL_INVALID_VALUE);
     return;
   }
-  p[0].op = OP_Frustum;
   p[1].f = left;
   p[2].f = right;
   p[3].f = bottom;
@@ -389,8 +361,6 @@ static void call_material(GLContext *c, GLenum face, GLenum pname, const GLfixed
 {
   GLParam p[7];
   int i, n = pname == GL_SHININESS ? 1 : 4;
-
-  p[0].op = OP_Material;
   p[1].i = face;
   p[2].i = pname;
   for (i = 0; i < n; i++) p[3 + i].f = params[i];
@@ -435,7 +405,6 @@ void glColorMaterial(GLenum face, GLenum pname)
     gl_set_error(c, GL_INVALID_ENUM);
     return;
   }
-  p[0].op = OP_ColorMaterial;
   p[1].i = face;
   p[2].i = pname;
   glopColorMaterial(c, p);
@@ -445,8 +414,6 @@ static void call_light(GLContext *c, GLenum light, GLenum pname, const GLfixed *
 {
   GLParam p[7];
   int i;
-
-  p[0].op = OP_Light;
   p[1].i = light;
   p[2].i = pname;
   for (i = 0; i < 4; i++) p[3 + i].f = params[i];
@@ -509,7 +476,6 @@ void glLightModelxv(GLenum pname, const GLfixed *params)
     gl_set_error(c, GL_INVALID_VALUE);
     return;
   }
-  p[0].op = OP_LightModel;
   p[1].i = pname;
   for (i = 0; i < 4; i++) p[2 + i].f = (pname == GL_LIGHT_MODEL_AMBIENT) ? params[i] : params[0];
   glopLightModel(c, p);
@@ -529,7 +495,6 @@ void glClear(GLbitfield mask)
     gl_set_error(c, GL_INVALID_VALUE);
     return;
   }
-  p[0].op = OP_Clear;
   p[1].i = (int)mask;
   glopClear(c, p);
 }
@@ -538,8 +503,6 @@ void glClearColorx(GLfixed r, GLfixed g, GLfixed b, GLfixed a)
 {
   GLParam p[5];
   GLContext *c = gl_get_context();
-
-  p[0].op = OP_ClearColor;
   p[1].f = r;
   p[2].f = g;
   p[3].f = b;
@@ -551,8 +514,6 @@ void glClearDepthx(GLfixed depth)
 {
   GLParam p[2];
   GLContext *c = gl_get_context();
-
-  p[0].op = OP_ClearDepth;
   p[1].f = depth;
   glopClearDepth(c, p);
 }
@@ -561,8 +522,6 @@ void glBindTexture(GLenum target, GLuint texture)
 {
   GLParam p[3];
   GLContext *c = gl_get_context();
-
-  p[0].op = OP_BindTexture;
   p[1].i = target;
   p[2].i = (int)texture;
   glopBindTexture(c, p);
@@ -574,8 +533,6 @@ void glTexImage2D(GLenum target, GLint level, GLint internalformat,
 {
   GLParam p[10];
   GLContext *c = gl_get_context();
-
-  p[0].op = OP_TexImage2D;
   p[1].i = target;
   p[2].i = level;
   p[3].i = internalformat;
@@ -592,11 +549,8 @@ void glTexSubImage2D(GLenum target, GLint level, GLint xoffset, GLint yoffset,
                      GLsizei width, GLsizei height, GLenum format, GLenum type,
                      const GLvoid *pixels)
 {
-  extern void glopTexSubImage2D(GLContext *c, GLParam *p);
   GLParam p[10];
   GLContext *c = gl_get_context();
-
-  p[0].op = OP_TexImage2D;
   p[1].i = target;
   p[2].i = level;
   p[3].i = xoffset;
@@ -613,8 +567,6 @@ static void call_tex_env(GLenum target, GLenum pname, GLint param)
 {
   GLParam p[8];
   GLContext *c = gl_get_context();
-
-  p[0].op = OP_TexEnv;
   p[1].i = target;
   p[2].i = pname;
   p[3].i = param;
@@ -656,8 +608,6 @@ static void call_tex_parameter(GLenum target, GLenum pname, GLint param)
 {
   GLParam p[8];
   GLContext *c = gl_get_context();
-
-  p[0].op = OP_TexParameter;
   p[1].i = target;
   p[2].i = pname;
   p[3].i = param;
@@ -699,8 +649,6 @@ void glPixelStorei(GLenum pname, GLint param)
 {
   GLParam p[3];
   GLContext *c = gl_get_context();
-
-  p[0].op = OP_PixelStore;
   p[1].i = pname;
   p[2].i = param;
   glopPixelStore(c, p);
@@ -710,8 +658,6 @@ void glPolygonOffsetx(GLfixed factor, GLfixed units)
 {
   GLParam p[3];
   GLContext *c = gl_get_context();
-
-  p[0].op = OP_PolygonOffset;
   p[1].f = factor;
   p[2].f = units;
   glopPolygonOffset(c, p);
@@ -744,10 +690,4 @@ void glHint(GLenum target, GLenum mode)
   if (mode != GL_FASTEST && mode != GL_NICEST && mode != GL_DONT_CARE) {
     gl_set_error(c, GL_INVALID_ENUM);
   }
-}
-
-void glDebug(int mode)
-{
-  GLContext *c = gl_get_context();
-  c->print_flag = mode;
 }

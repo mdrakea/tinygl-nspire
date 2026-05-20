@@ -6,7 +6,6 @@ GLContext *gl_ctx;
 void initSharedState(GLContext *c)
 {
   GLSharedState *s=&c->shared_state;
-  s->lists=gl_zalloc(sizeof(GLList *) * MAX_DISPLAY_LISTS);
   s->texture_hash_table=
       gl_zalloc(sizeof(GLTexture *) * TEXTURE_HASH_TABLE_SIZE);
 
@@ -16,14 +15,13 @@ void initSharedState(GLContext *c)
 void endSharedState(GLContext *c)
 {
   GLSharedState *s=&c->shared_state;
-  int i;
-
-  for(i=0;i<MAX_DISPLAY_LISTS;i++) {
-    /* TODO */
-  }
-  gl_free(s->lists);
 
   gl_free(s->texture_hash_table);
+}
+
+GLContext *gl_get_context(void)
+{
+  return gl_ctx;
 }
 
 
@@ -53,12 +51,6 @@ void glInit(void *zbuffer1)
 
   /* shared state */
   initSharedState(c);
-
-  /* lists */
-
-  c->exec_flag=1;
-  c->compile_flag=0;
-  c->print_flag=0;
 
   c->in_begin=0;
 
@@ -116,15 +108,10 @@ void glInit(void *zbuffer1)
   c->current_normal.Z=0;
   c->current_normal.W=0;
 
-  c->current_edge_flag=1;
-  
   c->current_tex_coord.X=0;
   c->current_tex_coord.Y=0;
   c->current_tex_coord.Z=0;
   c->current_tex_coord.W=TGL_FIX_ONE;
-
-  c->polygon_mode_front=GL_FILL;
-  c->polygon_mode_back=GL_FILL;
 
   c->current_front_face=0; /* 0 = GL_CCW  1 = GL_CW */
   c->current_cull_face=GL_BACK;
@@ -138,10 +125,6 @@ void glInit(void *zbuffer1)
   c->clear_color.v[3]=0;
   c->clear_depth=0;
 
-  /* selection */
-  c->render_mode=GL_RENDER;
-  c->select_buffer=NULL;
-  c->name_stack_size=0;
   c->error=GL_NO_ERROR;
 
   /* matrix */

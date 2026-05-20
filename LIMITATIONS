@@ -34,3 +34,4 @@ Known limitations:
   triangle fills use the zbuffer path, and explicit depth-test toggling is
   mainly meaningful for lines.
 - Verification is currently Nspire-build coverage plus manual device testing.
+- Only the core APIs are supported; no extensions.

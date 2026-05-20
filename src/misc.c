@@ -70,14 +70,6 @@ void glopEnableDisable(GLContext *c,GLParam *p)
     if (v) c->offset_states |= TGL_OFFSET_FILL;
     else c->offset_states &= ~TGL_OFFSET_FILL;
     break; 
-  case GL_POLYGON_OFFSET_POINT:
-    if (v) c->offset_states |= TGL_OFFSET_POINT;
-    else c->offset_states &= ~TGL_OFFSET_POINT;
-    break; 
-  case GL_POLYGON_OFFSET_LINE:
-    if (v) c->offset_states |= TGL_OFFSET_LINE;
-    else c->offset_states &= ~TGL_OFFSET_LINE;
-    break; 
   default:
     if (code>=GL_LIGHT0 && code<GL_LIGHT0+MAX_LIGHTS) {
       gl_enable_disable_light(c,code - GL_LIGHT0, v);
@@ -106,37 +98,6 @@ void glopFrontFace(GLContext *c,GLParam *p)
 {
   int code=p[1].i;
   c->current_front_face=code;
-}
-
-void glopPolygonMode(GLContext *c,GLParam *p)
-{
-  int face=p[1].i;
-  int mode=p[2].i;
-  
-  switch(face) {
-  case GL_BACK:
-    c->polygon_mode_back=mode;
-    break;
-  case GL_FRONT:
-    c->polygon_mode_front=mode;
-    break;
-  case GL_FRONT_AND_BACK:
-    c->polygon_mode_front=mode;
-    c->polygon_mode_back=mode;
-    break;
-  default:
-    assert(0);
-  }
-}
-
-void glopHint(GLContext *c,GLParam *p)
-{
-#if 0
-  int target=p[1].i;
-  int mode=p[2].i;
-
-  /* do nothing */
-#endif
 }
 
 void 

@@ -50,28 +50,10 @@ void gl_transform_to_viewport(GLContext *c,GLVertex *v)
 }
 
 
-static void gl_add_select1(GLContext *c,int z1,int z2,int z3)
-{
-  unsigned int min,max;
-  min=max=z1;
-  if (z2<min) min=z2;
-  if (z3<min) min=z3;
-  if (z2>max) max=z2;
-  if (z3>max) max=z3;
-
-  gl_add_select(c,0xffffffff-min,0xffffffff-max);
-}
-
-/* point */
-
 void gl_draw_point(GLContext *c,GLVertex *p0)
 {
   if (p0->clip_code == 0) {
-    if (c->render_mode == GL_SELECT) {
-      gl_add_select(c,p0->zp.z,p0->zp.z);
-    } else {
-      ZB_plot(c->zb,&p0->zp);
-    }
+    ZB_plot(c->zb,&p0->zp);
   }
 }
 
@@ -122,14 +104,10 @@ void gl_draw_line(GLContext *c,GLVertex *p1,GLVertex *p2)
   cc2=p2->clip_code;
 
   if ( (cc1 | cc2) == 0) {
-    if (c->render_mode == GL_SELECT) {
-      gl_add_select1(c,p1->zp.z,p2->zp.z,p2->zp.z);
-    } else {
-        if (c->depth_test)
-            ZB_line_z(c->zb,&p1->zp,&p2->zp);
-        else
-            ZB_line(c->zb,&p1->zp,&p2->zp);
-    }
+    if (c->depth_test)
+        ZB_line_z(c->zb,&p1->zp,&p2->zp);
+    else
+        ZB_line(c->zb,&p1->zp,&p2->zp);
   } else if ( (cc1&cc2) != 0 ) {
     return;
   } else {
@@ -268,20 +246,15 @@ void gl_draw_triangle(GLContext *c,
         /* most used case first */
         if (c->current_cull_face == GL_BACK) {
           if (front == 0) return;
-          c->draw_triangle_front(c,p0,p1,p2);
+          gl_draw_triangle_fill(c,p0,p1,p2);
         } else if (c->current_cull_face == GL_FRONT) {
           if (front != 0) return;
-          c->draw_triangle_back(c,p0,p1,p2);
+          gl_draw_triangle_fill(c,p0,p1,p2);
         } else {
           return;
         }
       } else {
-        /* no culling */
-        if (front) {
-          c->draw_triangle_front(c,p0,p1,p2);
-        } else {
-          c->draw_triangle_back(c,p0,p1,p2);
-        }
+        gl_draw_triangle_fill(c,p0,p1,p2);
       }
   } else {
     c_and=cc[0] & cc[1] & cc[2];
@@ -294,7 +267,7 @@ void gl_draw_triangle(GLContext *c,
 static void gl_draw_triangle_clip(GLContext *c,
                                   GLVertex *p0,GLVertex *p1,GLVertex *p2,int clip_bit)
 {
-  int co,c_and,co1,cc[3],edge_flag_tmp,clip_mask;
+  int co,c_and,co1,cc[3],clip_mask;
   GLVertex tmp1,tmp2,*q[3];
   GLfixed tt;
   
@@ -336,14 +309,8 @@ static void gl_draw_triangle_clip(GLContext *c,
       tt=clip_proc[clip_bit](&tmp2.pc,&q[0]->pc,&q[2]->pc);
       updateTmp(c,&tmp2,q[0],q[2],tt);
 
-      tmp1.edge_flag=q[0]->edge_flag;
-      edge_flag_tmp=q[2]->edge_flag;
-      q[2]->edge_flag=0;
       gl_draw_triangle_clip(c,&tmp1,q[1],q[2],clip_bit+1);
 
-      tmp2.edge_flag=1;
-      tmp1.edge_flag=0;
-      q[2]->edge_flag=edge_flag_tmp;
       gl_draw_triangle_clip(c,&tmp2,&tmp1,q[2],clip_bit+1);
     } else {
       /* two points outside */
@@ -358,19 +325,11 @@ static void gl_draw_triangle_clip(GLContext *c,
       tt=clip_proc[clip_bit](&tmp2.pc,&q[0]->pc,&q[2]->pc);
       updateTmp(c,&tmp2,q[0],q[2],tt);
       
-      tmp1.edge_flag=1;
-      tmp2.edge_flag=q[2]->edge_flag;
       gl_draw_triangle_clip(c,q[0],&tmp1,&tmp2,clip_bit+1);
     }
   }
 }
 
-
-void gl_draw_triangle_select(GLContext *c,
-                             GLVertex *p0,GLVertex *p1,GLVertex *p2)
-{
-  gl_add_select1(c,p0->zp.z,p1->zp.z,p2->zp.z);
-}
 
 #ifdef PROFILE
 int count_triangles,count_triangles_textured,count_pixels;
@@ -408,31 +367,3 @@ void gl_draw_triangle_fill(GLContext *c,
     ZB_fillTriangleFlat(c->zb,&p0->zp,&p1->zp,&p2->zp);
   }
 }
-
-/* Render a clipped triangle in line mode */  
-
-void gl_draw_triangle_line(GLContext *c,
-                           GLVertex *p0,GLVertex *p1,GLVertex *p2)
-{
-    if (c->depth_test) {
-        if (p0->edge_flag) ZB_line_z(c->zb,&p0->zp,&p1->zp);
-        if (p1->edge_flag) ZB_line_z(c->zb,&p1->zp,&p2->zp);
-        if (p2->edge_flag) ZB_line_z(c->zb,&p2->zp,&p0->zp);
-    } else {
-        if (p0->edge_flag) ZB_line(c->zb,&p0->zp,&p1->zp);
-        if (p1->edge_flag) ZB_line(c->zb,&p1->zp,&p2->zp);
-        if (p2->edge_flag) ZB_line(c->zb,&p2->zp,&p0->zp);
-    }
-}
-
-
-
-/* Render a clipped triangle in point mode */
-void gl_draw_triangle_point(GLContext *c,
-                            GLVertex *p0,GLVertex *p1,GLVertex *p2)
-{
-  if (p0->edge_flag) ZB_plot(c->zb,&p0->zp);
-  if (p1->edge_flag) ZB_plot(c->zb,&p1->zp);
-  if (p2->edge_flag) ZB_plot(c->zb,&p2->zp);
-}
-

@@ -343,7 +343,6 @@ GL_API void GL_APIENTRY glTranslatex(GLfixed x, GLfixed y, GLfixed z);
 GL_API void GL_APIENTRY glVertexPointer(GLint size, GLenum type, GLsizei stride, const void *pointer);
 GL_API void GL_APIENTRY glViewport(GLint x, GLint y, GLsizei width, GLsizei height);
 
-void glDebug(int mode);
 void glInit(void *zbuffer);
 void glClose(void);
 

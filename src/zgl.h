@@ -14,14 +14,6 @@
 /* #define DEBUG  */
 /* #define NDEBUG */
 
-enum {
-
-#define ADD_OP(a,b,c) OP_ ## a ,
-
-#include "opinfo.h"
-
-};
-
 /* initially # of allocated GLVertexes (will grow when necessary) */
 #define POLYGON_MAX_VERTEX 16
 
@@ -36,56 +28,11 @@ enum {
 #define MAX_MODELVIEW_STACK_DEPTH  32
 #define MAX_PROJECTION_STACK_DEPTH 8
 #define MAX_TEXTURE_STACK_DEPTH    8
-#define MAX_NAME_STACK_DEPTH       64
 #define MAX_TEXTURE_LEVELS         11
 #define MAX_LIGHTS                 16
 
-#define VERTEX_HASH_SIZE 1031
-
-#define MAX_DISPLAY_LISTS 1024
-#define OP_BUFFER_MAX_SIZE 512
-
 #define TGL_OFFSET_FILL    0x1
-#define TGL_OFFSET_LINE    0x2
-#define TGL_OFFSET_POINT   0x4
 
-/* Desktop-only constants kept private for legacy internal code paths. */
-#ifndef GL_POINT
-#define GL_POINT 0x1B00
-#endif
-#ifndef GL_LINE
-#define GL_LINE 0x1B01
-#endif
-#ifndef GL_FILL
-#define GL_FILL 0x1B02
-#endif
-#ifndef GL_QUADS
-#define GL_QUADS 0x0007
-#endif
-#ifndef GL_QUAD_STRIP
-#define GL_QUAD_STRIP 0x0008
-#endif
-#ifndef GL_POLYGON
-#define GL_POLYGON 0x0009
-#endif
-#ifndef GL_POLYGON_OFFSET_POINT
-#define GL_POLYGON_OFFSET_POINT 0x2A01
-#endif
-#ifndef GL_POLYGON_OFFSET_LINE
-#define GL_POLYGON_OFFSET_LINE 0x2A02
-#endif
-#ifndef GL_RENDER
-#define GL_RENDER 0x1C00
-#endif
-#ifndef GL_SELECT
-#define GL_SELECT 0x1C02
-#endif
-#ifndef GL_COMPILE
-#define GL_COMPILE 0x1300
-#endif
-#ifndef GL_COMPILE_AND_EXECUTE
-#define GL_COMPILE_AND_EXECUTE 0x1301
-#endif
 
 typedef struct GLSpecBuf {
   int shininess_i;
@@ -121,7 +68,6 @@ typedef struct GLMaterial {
 
   /* computed values */
   int shininess_i;
-  int do_specular;  
 } GLMaterial;
 
 
@@ -133,25 +79,13 @@ typedef struct GLViewport {
 } GLViewport;
 
 typedef union {
-  int op;
   GLfixed f;
   int i;
   unsigned int ui;
   void *p;
 } GLParam;
 
-typedef struct GLParamBuffer {
-  GLParam ops[OP_BUFFER_MAX_SIZE];
-  struct GLParamBuffer *next;
-} GLParamBuffer;
-
-typedef struct GLList {
-  GLParamBuffer *first_op_buffer;
-  /* TODO: extensions for an hash table or a better allocating scheme */
-} GLList;
-
 typedef struct GLVertex {
-  int edge_flag;
   V3 normal;
   V4 coord;
   V4 tex_coord;
@@ -204,14 +138,8 @@ typedef struct GLArray {
 /* shared state */
 
 typedef struct GLSharedState {
-  GLList **lists;
   GLTexture **texture_hash_table;
 } GLSharedState;
-
-struct GLContext;
-
-typedef void (*gl_draw_triangle_func)(struct GLContext *c,
-                                      GLVertex *p0,GLVertex *p1,GLVertex *p2);
 
 /* display context */
 
@@ -241,11 +169,6 @@ typedef struct GLContext {
   /* shared state */
   GLSharedState shared_state;
 
-  /* current list */
-  GLParamBuffer *current_op_buffer;
-  int current_op_buffer_index;
-  int exec_flag,compile_flag,print_flag;
-
   /* matrix */
 
   int matrix_mode;
@@ -263,27 +186,11 @@ typedef struct GLContext {
   GLViewport viewport;
 
   /* current state */
-  int polygon_mode_back;
-  int polygon_mode_front;
-
   int current_front_face;
   int current_shade_model;
   int current_cull_face;
   int cull_face_enabled;
   int normalize_enabled;
-  gl_draw_triangle_func draw_triangle_front,draw_triangle_back;
-
-  /* selection */
-  int render_mode;
-  unsigned int *select_buffer;
-  int select_size;
-  unsigned int *select_ptr,*select_hit;
-  int select_overflow;
-  int select_hits;
-
-  /* names */
-  unsigned int name_stack[MAX_NAME_STACK_DEPTH];
-  int name_stack_size;
 
   GLenum error;
 
@@ -296,9 +203,8 @@ typedef struct GLContext {
   unsigned int longcurrent_color[3]; /* precomputed integer color */
   V4 current_normal;
   V4 current_tex_coord;
-  int current_edge_flag;
 
-  /* glBegin / glEnd */
+  /* Internal primitive assembly fed by glDrawArrays/glDrawElements. */
   int in_begin;
   int begin_type;
   int vertex_n,vertex_cnt;
@@ -336,7 +242,6 @@ typedef struct GLContext {
 
 extern GLContext *gl_ctx;
 
-void gl_add_op(GLParam *p);
 void gl_set_error(GLContext *c, GLenum error);
 void gl_submit_vertex(GLContext *c, GLfixed x, GLfixed y, GLfixed z, GLfixed w);
 int gl_begin_primitive(GLContext *c, GLenum mode);
@@ -348,14 +253,8 @@ void gl_draw_triangle(GLContext *c,GLVertex *p0,GLVertex *p1,GLVertex *p2);
 void gl_draw_line(GLContext *c,GLVertex *p0,GLVertex *p1);
 void gl_draw_point(GLContext *c,GLVertex *p0);
 
-void gl_draw_triangle_point(GLContext *c,
-                            GLVertex *p0,GLVertex *p1,GLVertex *p2);
-void gl_draw_triangle_line(GLContext *c,
-                           GLVertex *p0,GLVertex *p1,GLVertex *p2);
 void gl_draw_triangle_fill(GLContext *c,
                            GLVertex *p0,GLVertex *p1,GLVertex *p2);
-void gl_draw_triangle_select(GLContext *c,
-                             GLVertex *p0,GLVertex *p1,GLVertex *p2);
 
 /* matrix.c */
 void gl_print_matrix(const GLfixed *m);
@@ -364,12 +263,10 @@ void glopLoadIdentity(GLContext *c,GLParam *p);
 void glopTranslate(GLContext *c,GLParam *p);*/
 
 /* light.c */
-void gl_add_select(GLContext *c,unsigned int zmin,unsigned int zmax);
 void gl_enable_disable_light(GLContext *c,int light,int v);
 void gl_shade_vertex(GLContext *c,GLVertex *v);
 
 void glInitTextures(GLContext *c);
-void glEndTextures(GLContext *c);
 GLTexture *alloc_texture(GLContext *c,int h);
 
 /* image_util.c */
@@ -408,10 +305,42 @@ void dprintf(const char *, ...);
 #endif
 #endif /* !BEOS */
 
-/* glopXXX functions */
-
-#define ADD_OP(a,b,c) void glop ## a (GLContext *,GLParam *);
-#include "opinfo.h"
+/* Internal state mutators shared by the GLES entry points. */
+void glopColor(GLContext *c, GLParam *p);
+void glopTexCoord(GLContext *c, GLParam *p);
+void glopNormal(GLContext *c, GLParam *p);
+void glopBegin(GLContext *c, GLParam *p);
+void glopVertex(GLContext *c, GLParam *p);
+void glopEnd(GLContext *c, GLParam *p);
+void glopEnableDisable(GLContext *c, GLParam *p);
+void glopMatrixMode(GLContext *c, GLParam *p);
+void glopLoadMatrix(GLContext *c, GLParam *p);
+void glopLoadIdentity(GLContext *c, GLParam *p);
+void glopMultMatrix(GLContext *c, GLParam *p);
+void glopPushMatrix(GLContext *c, GLParam *p);
+void glopPopMatrix(GLContext *c, GLParam *p);
+void glopRotate(GLContext *c, GLParam *p);
+void glopTranslate(GLContext *c, GLParam *p);
+void glopScale(GLContext *c, GLParam *p);
+void glopViewport(GLContext *c, GLParam *p);
+void glopFrustum(GLContext *c, GLParam *p);
+void glopMaterial(GLContext *c, GLParam *p);
+void glopColorMaterial(GLContext *c, GLParam *p);
+void glopLight(GLContext *c, GLParam *p);
+void glopLightModel(GLContext *c, GLParam *p);
+void glopClear(GLContext *c, GLParam *p);
+void glopClearColor(GLContext *c, GLParam *p);
+void glopClearDepth(GLContext *c, GLParam *p);
+void glopTexImage2D(GLContext *c, GLParam *p);
+void glopTexSubImage2D(GLContext *c, GLParam *p);
+void glopBindTexture(GLContext *c, GLParam *p);
+void glopTexEnv(GLContext *c, GLParam *p);
+void glopTexParameter(GLContext *c, GLParam *p);
+void glopPixelStore(GLContext *c, GLParam *p);
+void glopShadeModel(GLContext *c, GLParam *p);
+void glopCullFace(GLContext *c, GLParam *p);
+void glopFrontFace(GLContext *c, GLParam *p);
+void glopPolygonOffset(GLContext *c, GLParam *p);
 
 /* this clip epsilon is needed to avoid some rounding errors after
    several clipping stages */
