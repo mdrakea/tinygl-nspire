@@ -1,24 +1,9 @@
-# TinyGL TI-Nspire Makefile
-# 
-# Build with: make -f Makefile.nspire
-# Requires TI-Nspire toolchain (Ndless SDK)
-#
-# Build process:
-#   1. nspire-gcc - compile C files to object files
-#   2. nspire-ld  - link object files to ELF executable
-#   3. genzehn    - convert ELF to .tns format
-#
-
 # Toolchain settings
 NDLESS_SDK ?= $(HOME)/Ndless/ndless-sdk
 CC = $(NDLESS_SDK)/bin/nspire-gcc
 LD = $(NDLESS_SDK)/bin/nspire-ld
 GENZEHN = $(NDLESS_SDK)/bin/genzehn
 
-# TI-Nspire-specific flags
-#
-# Release is the default because the Nspire CPU needs every cycle it can get.
-# Use `make -f Makefile.nspire DEBUG=1` for an unoptimized debug build.
 DEBUG ?= 0
 NSPIRE_PROFILER ?= 0
 
@@ -67,12 +52,12 @@ COVERAGE_OBJ = $(OBJ_DIR)/$(COVERAGE_NAME).o
 all: lib
 
 # Build TinyGL library
-lib: libTinyGL.a
+lib: libGLESpire.a
 
-libTinyGL.a: $(TINYGL_OBJS) FORCE
-	@echo "Building TinyGL library..."
+libGLESpire.a: $(TINYGL_OBJS) FORCE
+	@echo "Building GLESpire library..."
 	ar rcs $@ $(TINYGL_OBJS)
-	@echo "Built TinyGL library: $@"
+	@echo "Built GLESpire library: $@"
 
 nspire-utils: $(NSPIRE_UTIL_LIB)
 
