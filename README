@@ -1,47 +1,33 @@
-TinyGL for TI-Nspire
+GLESpire for TI-Nspire
 =====================
 
-This tree contains a TI-Nspire-focused TinyGL build. The legacy desktop
-ports and their public APIs have been removed, including GLX/X11, Nano-X,
-and BeOS support.
-
-The remaining public headers are:
-
-- `include/GL/gl.h` for the TinyGL/OpenGL-like API.
-- `include/GL/fixed.h` for fixed-point numeric helpers such as `TGL_I`
-  and `TGL_FRAC`. `GLfloat` and `GLdouble` are fixed-point values in this
-  port.
-- `include/GL/oscontext.h` for the small framebuffer context API used by
-  the Nspire port.
-- `include/GL/nspire.h` for Nspire-specific input, timing, and display
-  helpers.
+GLESpire is a OpenGL ES 1.1 compatible software renderer designed for the TI-Nspire (but only tested on CX/CX CAS hardware).
+It was originally forked from TinyGL by Fabrice Bellard, but with functionality removed to support only OpenGL ES's subset of OpenGL 1.1/1.2. (GLshim/GL4ES/etc will eventually be integrated in some form to resupport the desktop APIs)
 
 The TinyGL context allocates a 16MiB internal arena to use for memory
-allocation, but this can be changed by setting `ARENA_SIZE`
+allocation, but this can be changed by setting `ARENA_SIZE`.
+
+Conformance
+-----------
+The API mostly adheres to OpenGL ES 1.1 *on the Common-Lite profile* (i.e., only the fixed point APIs), albiet without any extensions. See LIMITATIONS for more detail
 
 Performance
 -----------
 
-Do not expect magic, it only runs the gears example at ~40fps in an
-emulated CX CAS and 20fps on real hardware... at half resolution scale.
+Do not expect magic, it only runs the gears example at ~30fps in an
+emulated CX CAS and half that on real hardware... at half resolution scale.
 
 Build
 -----
 
-Install the Ndless SDK and make sure `nspire-gcc`, `nspire-ld`, and
+Install the Ndless toolchain and SDK and make sure `nspire-gcc`, `nspire-ld`, and
 `genzehn` are on `PATH`, then run:
 
 ```
 make
 ```
 
-That is equivalent to:
-
-```
-make -f Makefile.nspire
-```
-
-The default build creates `libTinyGL.a`.
+The default build creates a static `libTinyGL.a`.
 
 To build the `examples/nspire_gears.c` demo as `nspire_gears.tns`, run:
 
@@ -62,3 +48,5 @@ Copyright
 
 TinyGL was originally written by Fabrice Bellard and is distributed under
 the MIT license. See `LICENSE`.
+
+OpenGL, OpenGL ES, and other associated names are owned by the Khronos Group. We do not claim any association or certification by them.

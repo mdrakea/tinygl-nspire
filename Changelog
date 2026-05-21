@@ -1,3 +1,7 @@
+version 0.5.1-nspire:
+ - added nspire port, removed other ports
+ - changed target API to OpenGL ES 1.1, remove desktop OpenGL APIs
+
 version 0.4.1:
  - changed license to MIT
  - fixed compilation errors

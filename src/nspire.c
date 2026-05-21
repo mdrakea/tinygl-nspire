@@ -6,9 +6,11 @@
  * Uses the native RGB565 format for maximum performance.
  */
 
+#include <stdbool.h>
 #include <libndls.h>
 #include <GL/oscontext.h>
 #include <GL/gl.h>
+#include <GL/nspire.h>
 #include "zgl.h"
 #include "zbuffer.h"
 #include <stdlib.h>
@@ -18,10 +20,6 @@
 /* TI-Nspire screen dimensions */
 #define NSPIRE_SCREEN_WIDTH  320
 #define NSPIRE_SCREEN_HEIGHT 240
-
-#ifndef NSPIRE_PROFILER
-#define NSPIRE_PROFILER 0
-#endif
 
 /* Our private context structure */
 typedef struct {
@@ -35,90 +33,11 @@ typedef struct {
 } TinyNspireContext;
 
 /* Global state */
-static TinyNspireContext *current_ctx = NULL;
 static bool lcd_initialized = false;
 static unsigned short lcd_framebuffer[NSPIRE_SCREEN_WIDTH * NSPIRE_SCREEN_HEIGHT];
-#if NSPIRE_PROFILER
-static bool profiler_timer_initialized = false;
-static unsigned profiler_timer_saved_load;
-static unsigned profiler_timer_saved_control;
-static unsigned profiler_timer_saved_bgload;
-#endif
 
 /* Forward declarations */
 static int nspire_resize_viewport(GLContext *c, int *xsize_ptr, int *ysize_ptr);
-
-#if NSPIRE_PROFILER
-static void nspire_profiler_timer_init(void)
-{
-    volatile unsigned *load;
-    volatile unsigned *control;
-    volatile unsigned *int_clear;
-    volatile unsigned *bgload;
-
-    if (profiler_timer_initialized || is_classic) return;
-
-    /*
-     * CX models expose an SP804 dual timer at 0x900D0000. Ndless uses
-     * timer 1 for sleep/idle; timer 2 is enough for local frame profiling.
-     */
-    load = (volatile unsigned *)0x900D0020;
-    control = (volatile unsigned *)0x900D0028;
-    int_clear = (volatile unsigned *)0x900D002C;
-    bgload = (volatile unsigned *)0x900D0038;
-
-    profiler_timer_saved_load = *load;
-    profiler_timer_saved_control = *control;
-    profiler_timer_saved_bgload = *bgload;
-
-    *control = 0;
-    *int_clear = 1;
-    *load = 0xffffffff;
-    *bgload = 0xffffffff;
-    *control = 0x82; /* enabled, 32-bit, no interrupt, free-running */
-    profiler_timer_initialized = true;
-}
-
-static void nspire_profiler_timer_shutdown(void)
-{
-    volatile unsigned *load;
-    volatile unsigned *control;
-    volatile unsigned *int_clear;
-    volatile unsigned *bgload;
-
-    if (!profiler_timer_initialized || is_classic) return;
-
-    load = (volatile unsigned *)0x900D0020;
-    control = (volatile unsigned *)0x900D0028;
-    int_clear = (volatile unsigned *)0x900D002C;
-    bgload = (volatile unsigned *)0x900D0038;
-
-    *control = 0;
-    *int_clear = 1;
-    *load = profiler_timer_saved_load;
-    *bgload = profiler_timer_saved_bgload;
-    *control = profiler_timer_saved_control;
-    profiler_timer_initialized = false;
-}
-
-unsigned nspire_timer_ticks(void)
-{
-    if (is_classic) {
-        return *(volatile unsigned *)0x90090000;
-    }
-
-    return *(volatile unsigned *)0x900D0024;
-}
-
-unsigned nspire_timer_elapsed(unsigned start, unsigned end)
-{
-    if (is_classic) {
-        return end - start;
-    }
-
-    return start - end;
-}
-#endif
 
 /*
  * Create a TinyGL context for TI-Nspire
@@ -179,9 +98,6 @@ ostgl_context *ostgl_create_context(const int xsize, const int ysize,
     ctx->screen_type = lcd_type();
     lcd_init(ctx->screen_type);
     lcd_initialized = true;
-#if NSPIRE_PROFILER
-    nspire_profiler_timer_init();
-#endif
     
     /* Create Z-buffers for each framebuffer */
     for (i = 0; i < numbuffers; i++) {
@@ -204,7 +120,6 @@ ostgl_context *ostgl_create_context(const int xsize, const int ysize,
     ctx->gl_context = gl_get_context();
     ctx->gl_context->opaque = (void *)ctx;
     ctx->gl_context->gl_resize_viewport = nspire_resize_viewport;
-    current_ctx = ctx;
     
     /* Force viewport initialization */
     ctx->gl_context->viewport.xsize = -1;
@@ -265,7 +180,6 @@ void ostgl_delete_context(ostgl_context *oscontext)
     if (ctx) {
         if (ctx->zbs) gl_free(ctx->zbs);
         if (ctx->framebuffers) gl_free(ctx->framebuffers);
-        if (current_ctx == ctx) current_ctx = NULL;
         gl_free(ctx);
     }
     
@@ -276,10 +190,6 @@ void ostgl_delete_context(ostgl_context *oscontext)
         lcd_init(SCR_TYPE_INVALID);
         lcd_initialized = false;
     }
-#if NSPIRE_PROFILER
-    nspire_profiler_timer_shutdown();
-#endif
-    
     glClose();
 }
 
@@ -386,27 +296,14 @@ static int nspire_resize_viewport(GLContext *c, int *xsize_ptr, int *ysize_ptr)
  * Swap buffers - blit the current buffer to the screen
  * This is the main rendering function users will call
  */
-#if NSPIRE_PROFILER
-static void nspire_swap_buffers_internal(unsigned *scale_ticks,
-                                         unsigned *blit_ticks)
-#else
-static void nspire_swap_buffers_internal(void)
-#endif
+void nspire_swap_buffers(void)
 {
     GLContext *gl_ctx;
     TinyNspireContext *ctx;
     unsigned short *src;
     unsigned short *dst;
-#if NSPIRE_PROFILER
-    unsigned t0, t1, t2;
-#endif
     int x, y;
 
-#if NSPIRE_PROFILER
-    if (scale_ticks) *scale_ticks = 0;
-    if (blit_ticks) *blit_ticks = 0;
-#endif
-    
     gl_ctx = gl_get_context();
     if (!gl_ctx) return;
     
@@ -417,20 +314,9 @@ static void nspire_swap_buffers_internal(void)
 
     if (ctx->xsize == NSPIRE_SCREEN_WIDTH &&
         ctx->ysize == NSPIRE_SCREEN_HEIGHT) {
-#if NSPIRE_PROFILER
-        t1 = nspire_timer_ticks();
-#endif
         lcd_blit(src, ctx->screen_type);
-#if NSPIRE_PROFILER
-        t2 = nspire_timer_ticks();
-        if (blit_ticks) *blit_ticks = nspire_timer_elapsed(t1, t2);
-#endif
         return;
     }
-
-#if NSPIRE_PROFILER
-    t0 = nspire_timer_ticks();
-#endif
 
     if (ctx->xsize == NSPIRE_SCREEN_WIDTH / 2 &&
         ctx->ysize == NSPIRE_SCREEN_HEIGHT / 2) {
@@ -449,15 +335,7 @@ static void nspire_swap_buffers_internal(void)
             }
         }
 
-#if NSPIRE_PROFILER
-        t1 = nspire_timer_ticks();
-#endif
         lcd_blit(lcd_framebuffer, ctx->screen_type);
-#if NSPIRE_PROFILER
-        t2 = nspire_timer_ticks();
-        if (scale_ticks) *scale_ticks = nspire_timer_elapsed(t0, t1);
-        if (blit_ticks) *blit_ticks = nspire_timer_elapsed(t1, t2);
-#endif
         return;
     }
     
@@ -472,94 +350,5 @@ static void nspire_swap_buffers_internal(void)
         }
     }
 
-#if NSPIRE_PROFILER
-    t1 = nspire_timer_ticks();
-#endif
     lcd_blit(lcd_framebuffer, ctx->screen_type);
-#if NSPIRE_PROFILER
-    t2 = nspire_timer_ticks();
-    if (scale_ticks) *scale_ticks = nspire_timer_elapsed(t0, t1);
-    if (blit_ticks) *blit_ticks = nspire_timer_elapsed(t1, t2);
-#endif
 }
-
-void nspire_swap_buffers(void)
-{
-#if NSPIRE_PROFILER
-    nspire_swap_buffers_internal(NULL, NULL);
-#else
-    nspire_swap_buffers_internal();
-#endif
-}
-
-#if NSPIRE_PROFILER
-void nspire_swap_buffers_profiled(unsigned *scale_ticks,
-                                  unsigned *blit_ticks)
-{
-    nspire_swap_buffers_internal(scale_ticks, blit_ticks);
-}
-#endif
-
-/*
- * Get the current screen type
- */
-scr_type_t nspire_get_screen_type(void)
-{
-    if (current_ctx) {
-        return current_ctx->screen_type;
-    }
-    return lcd_type();
-}
-
-/*
- * Check if a specific key is pressed
- * Returns non-zero if pressed, 0 if not
- */
-int nspire_is_key_pressed(t_key key)
-{
-    return isKeyPressed(key) ? 1 : 0;
-}
-
-/*
- * Check if any key is pressed
- */
-int nspire_any_key_pressed(void)
-{
-    return any_key_pressed() ? 1 : 0;
-}
-
-/*
- * Wait for a key press (blocking)
- */
-void nspire_wait_key(void)
-{
-    wait_key_pressed();
-}
-
-/*
- * Wait for all keys to be released
- */
-void nspire_wait_no_key(void)
-{
-    wait_no_key_pressed();
-}
-
-/*
- * Sleep for specified milliseconds
- */
-void nspire_msleep(unsigned int ms)
-{
-    msleep(ms);
-}
-
-#ifdef DEBUG
-/*
- * Set a software breakpoint in emulators
- */
-void nspire_breakpoint()
-{
-    bkpt();
-}
-#else
-#define nspire_breakpoint() (void)0
-#endif

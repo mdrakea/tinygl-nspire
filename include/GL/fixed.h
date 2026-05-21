@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 
-typedef int64_t GLfixed;
+typedef int32_t GLfixed;
 
 #define TGL_FIX_BITS 16
 #define TGL_FIX_ONE ((GLfixed)1 << TGL_FIX_BITS)
@@ -13,7 +13,7 @@ typedef int64_t GLfixed;
 #define TGL_FIX_PI ((GLfixed)205887)
 #define TGL_FIX_2PI ((GLfixed)411775)
 
-#define TGL_I(x) ((GLfixed)(x) * TGL_FIX_ONE)
+#define TGL_I(x) ((GLfixed)((int64_t)(x) * TGL_FIX_ONE))
 #define TGL_FRAC(num, den) ((GLfixed)(((int64_t)(num) * TGL_FIX_ONE) / (den)))
 
 static inline GLfixed tgl_fix_abs(GLfixed a)
@@ -23,13 +23,13 @@ static inline GLfixed tgl_fix_abs(GLfixed a)
 
 static inline GLfixed tgl_fix_mul(GLfixed a, GLfixed b)
 {
-  return (a * b) >> TGL_FIX_BITS;
+  return (GLfixed)(((int64_t)a * (int64_t)b) >> TGL_FIX_BITS);
 }
 
 static inline GLfixed tgl_fix_div(GLfixed a, GLfixed b)
 {
   if (b == 0) return 0;
-  return (a * TGL_FIX_ONE) / b;
+  return (GLfixed)(((int64_t)a * TGL_FIX_ONE) / b);
 }
 
 static inline GLfixed tgl_fix_div_int(GLfixed a, int b)

@@ -35,7 +35,7 @@ void glopMaterial(GLContext *c,GLParam *p)
     break;
   case GL_SHININESS:
     m->shininess=p[3].f;
-    m->shininess_i = (int)((m->shininess * SPECULAR_BUFFER_RESOLUTION) / TGL_I(128));
+    m->shininess_i = (int)(((int64_t)m->shininess * SPECULAR_BUFFER_RESOLUTION) / TGL_I(128));
     break;
   case GL_AMBIENT_AND_DIFFUSE:
     for(i=0;i<4;i++)
@@ -237,7 +237,7 @@ void gl_shade_vertex(GLContext *c,GLVertex *v)
       lB+=tgl_fix_mul(tgl_fix_mul(dot, l->diffuse.v[2]), m->diffuse.v[2]);
 
       /* spot light */
-      if (l->spot_cutoff != 180) {
+      if (l->spot_cutoff != TGL_I(180)) {
         dot_spot=-(tgl_fix_mul(d.X,l->norm_spot_direction.v[0])+
                    tgl_fix_mul(d.Y,l->norm_spot_direction.v[1])+
                    tgl_fix_mul(d.Z,l->norm_spot_direction.v[2]));
